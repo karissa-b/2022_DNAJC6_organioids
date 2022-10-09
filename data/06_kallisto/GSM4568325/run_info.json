@@ -1,0 +1,9 @@
+{
+	"n_targets": 207877,
+	"n_bootstraps": 50,
+	"n_processed": 18444400,
+	"kallisto_version": "0.43.1",
+	"index_version": 10,
+	"start_time": "Sat Oct  8 16:40:28 2022",
+	"call": "kallisto quant --rf-stranded -i /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/kallisto/Homo_sapiens.GRCh38.cdna.ens107.idx -o /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/06_kallisto/GSM4568325/ -t 8 -b 50 GSM4568325_1.fastq.gz GSM4568325_2.fastq.gz"
+}

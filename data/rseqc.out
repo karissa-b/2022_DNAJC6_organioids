@@ -1,0 +1,161 @@
+/hpcfs/users/a1211024/.bashrc: line 16: /hpcfs/users/a1211024/.aliases: No such file or directory
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568320.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   41860759
+Total Tags                    55074934
+Total Assigned Tags           51495834
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            35312138            982.83            
+5'UTR_Exons         49524866            2786771             56.27             
+3'UTR_Exons         76908864            6384940             83.02             
+Introns             1619097910          6142368             3.79              
+TSS_up_1kb          28263575            45211               1.60              
+TSS_up_5kb          126239484           151102              1.20              
+TSS_up_10kb         225113666           276883              1.23              
+TES_down_1kb        30962577            57515               1.86              
+TES_down_5kb        133471442           338535              2.54              
+TES_down_10kb       233312228           592734              2.54              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568320.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568321.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   37713696
+Total Tags                    48601606
+Total Assigned Tags           45028107
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            29290661            815.23            
+5'UTR_Exons         49524866            2656635             53.64             
+3'UTR_Exons         76908864            5271601             68.54             
+Introns             1619097910          6907815             4.27              
+TSS_up_1kb          28263575            47822               1.69              
+TSS_up_5kb          126239484           198412              1.57              
+TSS_up_10kb         225113666           355724              1.58              
+TES_down_1kb        30962577            54967               1.78              
+TES_down_5kb        133471442           290208              2.17              
+TES_down_10kb       233312228           545671              2.34              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568321.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568322.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   44064461
+Total Tags                    58646633
+Total Assigned Tags           55592032
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            37198788            1035.34           
+5'UTR_Exons         49524866            2722135             54.97             
+3'UTR_Exons         76908864            7521385             97.80             
+Introns             1619097910          7431793             4.59              
+TSS_up_1kb          28263575            35073               1.24              
+TSS_up_5kb          126239484           96232               0.76              
+TSS_up_10kb         225113666           149875              0.67              
+TES_down_1kb        30962577            67383               2.18              
+TES_down_5kb        133471442           363246              2.72              
+TES_down_10kb       233312228           568056              2.43              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568322.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568323.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   45256024
+Total Tags                    59631543
+Total Assigned Tags           56387736
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            38252789            1064.67           
+5'UTR_Exons         49524866            2951253             59.59             
+3'UTR_Exons         76908864            7960231             103.50            
+Introns             1619097910          6528639             4.03              
+TSS_up_1kb          28263575            38482               1.36              
+TSS_up_5kb          126239484           109291              0.87              
+TSS_up_10kb         225113666           170484              0.76              
+TES_down_1kb        30962577            74012               2.39              
+TES_down_5kb        133471442           338960              2.54              
+TES_down_10kb       233312228           524340              2.25              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568323.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568324.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   51738619
+Total Tags                    67583907
+Total Assigned Tags           63727623
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            41343311            1150.69           
+5'UTR_Exons         49524866            3351036             67.66             
+3'UTR_Exons         76908864            9635804             125.29            
+Introns             1619097910          8392208             5.18              
+TSS_up_1kb          28263575            45678               1.62              
+TSS_up_5kb          126239484           123680              0.98              
+TSS_up_10kb         225113666           190731              0.85              
+TES_down_1kb        30962577            93957               3.03              
+TES_down_5kb        133471442           510690              3.83              
+TES_down_10kb       233312228           814533              3.49              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568324.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568325.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   36260013
+Total Tags                    46044353
+Total Assigned Tags           43318631
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            24914839            693.44            
+5'UTR_Exons         49524866            2025318             40.89             
+3'UTR_Exons         76908864            6146646             79.92             
+Introns             1619097910          9281477             5.73              
+TSS_up_1kb          28263575            29467               1.04              
+TSS_up_5kb          126239484           90726               0.72              
+TSS_up_10kb         225113666           156832              0.70              
+TES_down_1kb        30962577            69230               2.24              
+TES_down_5kb        133471442           471223              3.53              
+TES_down_10kb       233312228           793519              3.40              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568325.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568326.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   38866316
+Total Tags                    51405991
+Total Assigned Tags           48454773
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            32034322            891.60            
+5'UTR_Exons         49524866            2669548             53.90             
+3'UTR_Exons         76908864            7215502             93.82             
+Introns             1619097910          5863747             3.62              
+TSS_up_1kb          28263575            29664               1.05              
+TSS_up_5kb          126239484           77570               0.61              
+TSS_up_10kb         225113666           116112              0.52              
+TES_down_1kb        30962577            64809               2.09              
+TES_down_5kb        133471442           351100              2.63              
+TES_down_10kb       233312228           555542              2.38              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568326.Aligned.sortedByCoord.out.bam
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/refs/Homo_sapiens.GRCh38.107.bed ... Done
+processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568327.Aligned.sortedByCoord.out.bam ... Finished
+
+Total Reads                   35085127
+Total Tags                    46188440
+Total Assigned Tags           43497917
+=====================================================================
+Group               Total_bases         Tag_count           Tags/Kb             
+CDS_Exons           35929143            28556276            794.79            
+5'UTR_Exons         49524866            2235831             45.15             
+3'UTR_Exons         76908864            6561802             85.32             
+Introns             1619097910          5429322             3.35              
+TSS_up_1kb          28263575            26112               0.92              
+TSS_up_5kb          126239484           70510               0.56              
+TSS_up_10kb         225113666           109630              0.49              
+TES_down_1kb        30962577            57531               1.86              
+TES_down_5kb        133471442           373154              2.80              
+TES_down_10kb       233312228           605056              2.59              
+=====================================================================
+Finished Processing /hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam/GSM4568327.Aligned.sortedByCoord.out.bam

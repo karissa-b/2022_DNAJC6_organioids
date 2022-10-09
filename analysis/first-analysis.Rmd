@@ -1,0 +1,467 @@
+---
+title: "first-analysis"
+author: "Karissa Barthelson"
+date: "2022-10-07"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Introduction
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  autodep = TRUE,
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center", 
+  out.width ="75%", 
+  out.height = "75%"
+)
+```
+
+```{r loadLibs}
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(ngsReports)
+library(AnnotationHub)
+library(pander)
+library(scales)
+library(pheatmap)
+library(ggpubr)
+library(ggeasy)
+library(GEOquery)
+library(limma)
+library(edgeR)
+library(strandCheckR)
+
+theme_set(theme_bw())
+```
+
+```{r anno}
+
+# annotations for genes obtained from annotation hub for ensembl release 101. 
+# this release was the latest version on ah, and was what i aligned the reads to in the genome. 
+# did a few calculations for transcript length and GC content to do checks later. 
+
+ah <- AnnotationHub() %>%
+	subset(species == "Homo sapiens") %>%
+	subset(rdataclass == "EnsDb")
+
+ensDb <- ah[["AH83216"]] # for release 101, latest version and the alignment
+grTrans <- transcripts(ensDb)
+trLengths <- exonsBy(ensDb, "tx") %>%
+	width() %>%
+	vapply(sum, integer(1))
+mcols(grTrans)$length <- trLengths[names(grTrans)]
+gcGene <- grTrans %>%
+  mcols() %>%
+  as.data.frame() %>%
+  dplyr::select(gene_id, tx_id, gc_content, length) %>%
+  as_tibble() %>%
+  group_by(gene_id) %>%
+  summarise(
+    gc_content = sum(gc_content*length) / sum(length),
+    length = ceiling(median(length))
+  )
+grGenes <- genes(ensDb)
+mcols(grGenes) %<>%
+  as.data.frame() %>%
+  left_join(gcGene) %>%
+  as.data.frame() %>%
+  DataFrame()
+```
+
+```{r meta}
+# Got this series matrix from the GEO website for this dataset. 
+# Then used the getGEO pkg to format it nicely. 
+meta <- getGEO(filename = "data/GSE151190_series_matrix.txt") %>% 
+  as_tibble 
+
+# clean up to make a nicer columns for the metadata for interest
+meta %<>% 
+  mutate(Genotype = case_when(
+    genotype.ch1 == "wild type"  ~ "wt",
+    genotype.ch1 != "wild type"  ~ "DNAJC6_mut"
+  ) %>% 
+    factor(levels = c("wt", "DNAJC6_mut")), 
+  div = str_remove(timepoint.ch1, pattern = "DIV ")
+  )
+
+```
+
+
+## fastqc: raw data
+
+Here, I will use the `ngsReports` package to combine and visualise the fastqc results. 
+```{r fastqcRawObejct}
+# prep the raw fastqc object for making plots.
+fastqc_raw <- list.files(
+  path = "data/fastqc_raw",
+  pattern = "zip", 
+  recursive = TRUE,
+  full.names = TRUE) %>% 
+  FastqcDataList()
+```
+
+The total number of reads ranged between `r range(readTotals(fastqc_raw)$Total_Sequences) %>% comma %>% pander` reads. Note that the number of reads in the `R1` file indeed equals to the number of reads in the `R2` file. 
+
+```{r}
+readTotals(fastqc_raw) %>% 
+  mutate(Read = case_when(
+    grepl(Filename, pattern = "_1") ~ "R1", 
+    grepl(Filename, pattern = "_2") ~ "R2"
+  ), 
+  geo_accession = str_remove(Filename, "_[1|2].fastq.gz")
+  ) %>% 
+  left_join(meta) %>% 
+  ggplot(aes(x = geo_accession, y = Total_Sequences, fill = Read)) + 
+           geom_col(position = "dodge", colour = "black") +
+  coord_flip() +
+  scale_fill_viridis_d(end = 0.9) +
+  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right")
+```
+
+The base quality of all the reads also looked good.
+
+```{r}
+plotBaseQuals(fastqc_raw)
+```
+
+### GC Content
+
+All samples have similar GC content and kind of follow the predicted human transcriptome. I think it may deviate a bit because these are organoids and dont express all genes in the transcriptome. 
+
+```{r}
+plotGcContent(
+  x = fastqc_raw, 
+  plotType = "line",
+  gcType = "Transcriptome", 
+  species = "Hsapiens", 
+  usePlotly = F
+) +
+  theme(legend.position = "none")
+```
+
+### Over-repreented seq
+
+A couple of over-represented sequences are present in the raw data files. But they seem to be just rubbish reads that will be removed in the trimming anyway.
+
+```{r}
+getModule(fastqc_raw, "Overrep") %>% 
+  pander()
+
+```
+
+
+## trimmed data fastQC
+
+The raw fastq files were then processed with `fastp`. In this step, the adaptor sequeces were trimmed from the reads. Then all length and quality filters were left as default values. Less than 1% of the reads was discarded, and no observed changes are apparent in the %GC in the reads. 
+
+```{r}
+fastqc_trim <- list.files(path = "data/fastqc_trim",
+  pattern = "zip", 
+  recursive = TRUE,
+  full.names = TRUE) %>% 
+  FastqcDataList()
+```
+
+```{r}
+trimStats <- readTotals(fastqc_raw) %>%
+  dplyr::rename(Raw = Total_Sequences) %>%
+  left_join(readTotals(fastqc_trim), by = "Filename") %>%
+  dplyr::rename(Trimmed = Total_Sequences) %>%
+  mutate(
+    Discarded = 1 - Trimmed / Raw,
+    Retained = Trimmed / Raw
+  )
+
+trimStats %>% 
+  mutate(geo_accession = str_remove(Filename, "_[1|2].fastq.gz") # extract the geo acc from the filename to join. 
+  ) %>% 
+  left_join(meta) %>% 
+  unique() %>% 
+  ggplot(aes(y = Filename, fill = Genotype)) +
+  geom_col(aes(x = Discarded*100)) +
+  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right") +
+  labs(x = "Percentage reads discarded by fastp") +
+  theme(legend.position = "none")
+```
+
+```{r}
+ggarrange(
+  plotGcContent(
+    x = fastqc_raw, 
+    plotType = "line",
+    gcType = "Transcriptome", 
+    species = "Hsapiens"
+  ) +
+    theme(legend.position = "none") +
+    ggtitle("Before fastp"), 
+  plotGcContent(
+  x = fastqc_trim, 
+  plotType = "line",
+  gcType = "Transcriptome", 
+  species = "Hsapiens"
+) +
+  theme(legend.position = "none")+
+  ggtitle("After fastp")
+) 
+
+```
+
+## Aligned QC
+The reads were aligned to the GRCz11 genome. The majority of reads were aligned uniquely. S
+```{r}
+fastqc_align <- list.files(
+  path = "data/fastqc_align",
+  pattern = "zip", 
+  recursive = TRUE,
+  full.names = TRUE) %>% 
+  FastqcDataList()
+```
+
+```{r}
+list.files("data/log", full.names = TRUE) %>% 
+  .[grepl(x = ., pattern = "Log.final.out")] %>%
+  ngsReports::plotAlignmentSummary(type = "star") +
+  scale_fill_viridis_d(end = 0.8) +
+  theme(legend.position = "right") +
+  ggtitle("Summary of alignment (STAR)", 
+          subtitle = "In all samples, the majority of reads mapped uniquely to the zebrafish genome.")
+```
+
+```{r}
+plotGcContent(x = fastqc_align, 
+    plotType = "line",
+    gcType = "Transcriptome", 
+    species = "Hsapiens"
+  ) +
+  theme(legend.position = "none") 
+```
+
+The %GC content after alignment looks a bit dodgy. Is this because of inproper ribosomal RNA removal? 
+
+# Check for genomic DNA contamination
+
+In their paper, they did not mention a DNase treatment of the total RNA samples. This could be problematic since contaminating gDNA will mess with the differential gene expression analysis. First, using `RSeQC`, I checked the prop of reads aligning to coding and non-coding regions of the genome. About 20-30% of reads  align to intronic sequences. But this could be due to unannotated sequences. Less than 5% align to intergenic regions. Unclear from this whether it is gDNA contamination as they used a polyA+ lib kit. 
+
+```{r}
+read_excel("data/rseqc_readDist_summary.xlsx") %>% 
+  mutate(genomicFeature = case_when(
+    grepl(Group, pattern = "^TES") ~ "Intergenic",
+    grepl(Group, pattern = "^TSS") ~ "Intergenic",
+    TRUE ~ Group)
+  ) %>% 
+  mutate(percentTags = Tag_count*100/total_tags) %>% 
+  left_join(meta) %>% 
+  ggplot(aes(y = geo_accession, x = `Tags/Kb`, fill = genomicFeature)) +
+  geom_col() +
+  scale_fill_viridis_d(end = 0.95) +
+  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right") 
+  scale_x_continuous(breaks = seq(from = 0, to = 100, by = 10))
+```
+
+Next, I used `strandCheckR` to assess the strangeness of the reads. StrandcheckR works by  assessing whether windows of a bam file (i.e. a section of the bam alignment) contains reads mainly from one strand, as would be expected from RNA molecules, or from both strands as would be expected from contaminating DNA. In the figs below, there are 2 distinct peaks at each end of the x axis, indicating that there is likely no gDNA contamination in these samples. 
+
+```{r}
+# note that Have to have my phoenix drive mounted for this code to work. 
+bams <- list.files("/hpcfs/users/a1211024/dnajc6_brain_organiods_RNAseq_2022/03_alignstar/bam", full.names = T)
+
+# just look at the first bam
+win <- getWinFromBamFile(bams[1], sequences = "10")
+# shorten the file name
+win$File <- basename(as.character(win$File))
+
+intersectWithFeature(
+    windows = win, annotation = grTrans, overlapCol = "OverlapTranscript"
+    )
+
+plotHist(
+    windows = win, 
+    groupBy = c("File","OverlapTranscript"), 
+    normalizeBy = "File", scales = "free_y"
+    ) +
+  ggtitle(paste0(win$File %>% unique()))
+
+# second bam
+win <- getWinFromBamFile(bams[2], sequences = "10")
+# shorten the file name
+win$File <- basename(as.character(win$File))
+
+intersectWithFeature(
+    windows = win, annotation = grTrans, overlapCol = "OverlapTranscript"
+    )
+
+plotHist(
+    windows = win, 
+    groupBy = c("File","OverlapTranscript"), 
+    normalizeBy = "File", scales = "free_y"
+    ) +
+  ggtitle(paste0(win$File %>% unique()))
+```
+
+
+## FeatureCounts summary
+
+```{r}
+FC_summary <- read.delim("data/04_featureCounts/featureCounts.all.mappingqual10.txt.summary")
+
+# tidy up colnames  
+colnames(FC_summary) %<>% 
+  str_remove(pattern = ".Aligned.sortedByCoord.out.bam") 
+  
+  str_replace(pattern = "\\.", replacement = "\\-")
+
+FC_summary %>% 
+ gather(key = "geo_accession", value = "NumReads", starts_with("G")) %>% 
+  left_join(meta) %>% 
+  as_tibble() %>% 
+  dplyr::filter(NumReads > 0) %>%   
+  ggplot(aes(y = geo_accession, x = NumReads, fill = Status)) +
+  geom_col() +
+  scale_fill_viridis_d(end = 0.8, option = "turbo") +
+  scale_x_continuous(labels = comma) +
+  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right")
+```
+
+A high number of multi-mapping reads are observed. I'm not sure what these are yet. I will try kallisto quant instead. However, library sizes were very low using this method of quantification. 
+
+```{r}
+
+counts <- list.files(
+  path = "data/06_kallisto/",
+  full.names = TRUE) %>%
+  catchKallisto()
+
+# tidy up colnames
+colnames(counts$counts) %<>%
+  basename()
+
+x <- counts$counts %>%
+  as.data.frame() %>%
+  rownames_to_column("tx_id") %>%
+  dplyr::filter(!grepl("unspliced", tx_id)) %>%
+  as_tibble() %>%
+  mutate(tx_id = str_remove_all(tx_id, "\\.[0-9]+")) %>%
+  gather(key = "Sample", value = "Counts", starts_with("GS")) %>%
+  left_join(grTrans %>% as_tibble()) %>%
+  group_by(Sample, gene_id) %>%
+  summarise(Counts = sum(Counts)) %>%
+  spread(key = "Sample", value = "Counts") %>%
+  na.omit() %>% 
+  column_to_rownames("gene_id") %>%
+  DGEList(genes = rownames(.)) %>%
+  calcNormFactors()
+
+x$samples %<>% 
+  mutate(geo_accession = rownames(.)) %>% 
+  left_join(meta)
+
+x$genes %<>% 
+  set_colnames("gene_id") %>% 
+  left_join(grGenes %>% 
+              as_tibble() %>% 
+              dplyr::select(gene_id, gene_name, gc_content, length,
+                            c(chromosome = seqnames), strand, description)) 
+```
+
+```{r}
+x$samples %>% 
+  ggplot(aes(y = geo_accession, x = lib.size, fill = Genotype)) + 
+  geom_col() +
+  facet_wrap(~div, scales = "free_y", ncol = 1, strip.position = "right") +
+  scale_x_continuous(labels = comma) +
+  labs(
+    x = "Sample", 
+    y = "RNA-seq library size", 
+    fill = "DIV"
+  )
+```
+
+```{r}
+counts_nc <- list.files(
+  path = "data/06_kallisto_nc/",
+  full.names = TRUE) %>%
+  catchKallisto()
+
+# tidy up colnames
+colnames(counts_nc$counts) %<>%
+  basename()
+
+x_nc <- counts_nc$counts %>%
+  as.data.frame() %>%
+  rownames_to_column("tx_id") %>%
+  dplyr::filter(!grepl("unspliced", tx_id)) %>%
+  as_tibble() %>%
+  mutate(tx_id = str_remove_all(tx_id, "\\.[0-9]+")) %>%
+  gather(key = "Sample", value = "Counts", starts_with("GS")) %>%
+  left_join(grTrans %>% as_tibble()) %>%
+  group_by(Sample, gene_id) %>%
+  summarise(Counts = sum(Counts)) %>%
+  spread(key = "Sample", value = "Counts") %>%
+  na.omit() %>% 
+  column_to_rownames("gene_id") %>%
+  DGEList(genes = rownames(.)) %>%
+  calcNormFactors()
+
+x_nc$genes %<>% 
+  set_colnames("gene_id") %>% 
+  left_join(grGenes %>% 
+              as_tibble() %>% 
+              dplyr::select(gene_id, gene_name, gc_content, length,
+                            c(chromosome = seqnames), strand, description, everything())) 
+```
+
+
+I next want to see where the multi-mapping reads are aligning to. To do this, I repeated the featurecounts summary, but this time I included the -M option. This tells featurecounts to look for the "NH" tag in the bam file to find the multi-mapping reads. Then, each alignment reported for a multi-mapping read will be counted individually. Each alignment will carry 1 count. 
+
+Including the -M flag meant that there was no more multi-mapping reads. However, now the # reads which were unassigned due to mapping quality was reduced. I then removed the -Q flag to see, and then they were simply unassigned due to no features. 
+
+```{r}
+FC_summary_mm <- read.delim("data/04_featureCounts/featureCounts.all.multimapping.mappingqual10.txt.summary")
+
+# tidy up colnames  
+colnames(FC_summary_mm) %<>% 
+  str_remove(pattern = ".Aligned.sortedByCoord.out.bam") %>% 
+  str_replace(pattern = "\\.", replacement = "\\-")
+  
+FC_summary_mm %>% 
+  gather(key = "geo_accession", value = "NumReads", starts_with("G")) %>% 
+  left_join(meta) %>% 
+  as_tibble() %>% 
+  dplyr::filter(NumReads > 0) %>%   
+  ggplot(aes(y = geo_accession, x = NumReads, fill = Status)) +
+  geom_col() +
+  scale_fill_viridis_d(end = 0.8, option = "turbo") +
+  scale_x_continuous(labels = comma) +
+  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right")
+
+
+```
+
+```{r}
+fc <- read_delim("data/04_featureCounts/featureCounts.all.mappingqual10.txt", delim = "\t", skip = 1) %>%
+  set_names(basename(names(.))) %>% 
+  as.data.frame() %>%
+  dplyr::select(-c(Chr, Start, End, Length, Strand)) %>% 
+  gather(key = "geo_accession", value = "counts", starts_with("GSM")) %>% 
+  left_join(meta) %>% 
+  dplyr::select(Geneid, counts, geo_accession) %>% 
+  spread(key = "geo_accession", value = "counts") %>% 
+  column_to_rownames("Geneid")
+
+fcmm <- read.delim("data/04_featureCounts/featureCounts.all.multimapping.mappingqual10.txt.summary")
+```
+
+
+
+
+
+
+
+  
+
+
+
