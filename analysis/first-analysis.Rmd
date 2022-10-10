@@ -30,6 +30,7 @@ library(pander)
 library(scales)
 library(pheatmap)
 library(ggpubr)
+library(ggrepel)
 library(ggeasy)
 library(GEOquery)
 library(limma)
@@ -151,7 +152,6 @@ A couple of over-represented sequences are present in the raw data files. But th
 ```{r}
 getModule(fastqc_raw, "Overrep") %>% 
   pander()
-
 ```
 
 
@@ -211,6 +211,12 @@ ggarrange(
 
 ```
 
+```{r}
+getModule(fastqc_trim, "Overrep") %>% 
+  pander()
+```
+
+
 ## Aligned QC
 The reads were aligned to the GRCz11 genome. The majority of reads were aligned uniquely. S
 ```{r}
@@ -224,10 +230,11 @@ fastqc_align <- list.files(
 
 ```{r}
 list.files("data/log", full.names = TRUE) %>% 
-  .[grepl(x = ., pattern = "Log.final.out")] %>%
+  .[grepl(x = ., pattern = "Log.final.out")] %>% 
   ngsReports::plotAlignmentSummary(type = "star") +
   scale_fill_viridis_d(end = 0.8) +
   theme(legend.position = "right") +
+  geom_label_repel(aes(label = `Reads`)) +
   ggtitle("Summary of alignment (STAR)", 
           subtitle = "In all samples, the majority of reads mapped uniquely to the zebrafish genome.")
 ```
@@ -241,7 +248,13 @@ plotGcContent(x = fastqc_align,
   theme(legend.position = "none") 
 ```
 
-The %GC content after alignment looks a bit dodgy. Is this because of inproper ribosomal RNA removal? 
+```{r}
+getModule(fastqc_align, "Overrep") %>% 
+  pander()
+```
+
+
+The %GC content after alignment looks a bit dodgy. Is this because of improper ribosomal RNA removal? I will look into this later. 
 
 # Check for genomic DNA contamination
 
@@ -256,7 +269,7 @@ read_excel("data/rseqc_readDist_summary.xlsx") %>%
   ) %>% 
   mutate(percentTags = Tag_count*100/total_tags) %>% 
   left_join(meta) %>% 
-  ggplot(aes(y = geo_accession, x = `Tags/Kb`, fill = genomicFeature)) +
+  ggplot(aes(y = geo_accession, x = percentTags, fill = genomicFeature)) +
   geom_col() +
   scale_fill_viridis_d(end = 0.95) +
   facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right") 
@@ -311,8 +324,6 @@ FC_summary <- read.delim("data/04_featureCounts/featureCounts.all.mappingqual10.
 # tidy up colnames  
 colnames(FC_summary) %<>% 
   str_remove(pattern = ".Aligned.sortedByCoord.out.bam") 
-  
-  str_replace(pattern = "\\.", replacement = "\\-")
 
 FC_summary %>% 
  gather(key = "geo_accession", value = "NumReads", starts_with("G")) %>% 
@@ -323,13 +334,13 @@ FC_summary %>%
   geom_col() +
   scale_fill_viridis_d(end = 0.8, option = "turbo") +
   scale_x_continuous(labels = comma) +
-  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right")
+  facet_wrap(~Genotype, scales = "free_y", ncol = 1, strip.position = "right") +
+  geom_label_repel(aes(label = NumReads))
 ```
 
 A high number of multi-mapping reads are observed. I'm not sure what these are yet. I will try kallisto quant instead. However, library sizes were very low using this method of quantification. 
 
 ```{r}
-
 counts <- list.files(
   path = "data/06_kallisto/",
   full.names = TRUE) %>%
@@ -339,7 +350,7 @@ counts <- list.files(
 colnames(counts$counts) %<>%
   basename()
 
-x <- counts$counts %>%
+kallisto <- counts$counts %>%
   as.data.frame() %>%
   rownames_to_column("tx_id") %>%
   dplyr::filter(!grepl("unspliced", tx_id)) %>%
@@ -355,20 +366,18 @@ x <- counts$counts %>%
   DGEList(genes = rownames(.)) %>%
   calcNormFactors()
 
-x$samples %<>% 
+kallisto$samples %<>% 
   mutate(geo_accession = rownames(.)) %>% 
   left_join(meta)
 
-x$genes %<>% 
+kallisto$genes %<>% 
   set_colnames("gene_id") %>% 
   left_join(grGenes %>% 
               as_tibble() %>% 
               dplyr::select(gene_id, gene_name, gc_content, length,
                             c(chromosome = seqnames), strand, description)) 
-```
 
-```{r}
-x$samples %>% 
+kallisto$samples %>% 
   ggplot(aes(y = geo_accession, x = lib.size, fill = Genotype)) + 
   geom_col() +
   facet_wrap(~div, scales = "free_y", ncol = 1, strip.position = "right") +
@@ -390,7 +399,7 @@ counts_nc <- list.files(
 colnames(counts_nc$counts) %<>%
   basename()
 
-x_nc <- counts_nc$counts %>%
+kallisto_nc <- counts_nc$counts %>%
   as.data.frame() %>%
   rownames_to_column("tx_id") %>%
   dplyr::filter(!grepl("unspliced", tx_id)) %>%
@@ -406,18 +415,33 @@ x_nc <- counts_nc$counts %>%
   DGEList(genes = rownames(.)) %>%
   calcNormFactors()
 
-x_nc$genes %<>% 
+kallisto_nc$genes %<>% 
   set_colnames("gene_id") %>% 
   left_join(grGenes %>% 
               as_tibble() %>% 
               dplyr::select(gene_id, gene_name, gc_content, length,
                             c(chromosome = seqnames), strand, description, everything())) 
+
+kallisto_nc$samples %<>%   
+  mutate(geo_accession = rownames(.)) %>% 
+  left_join(meta)
+
+kallisto$samples %>% 
+  ggplot(aes(y = geo_accession, x = lib.size, fill = Genotype)) + 
+  geom_col() +
+  facet_wrap(~div, scales = "free_y", ncol = 1, strip.position = "right") +
+  scale_x_continuous(labels = comma) +
+  labs(
+    x = "Sample", 
+    y = "RNA-seq library size", 
+    fill = "DIV"
+  ) +
+  ggtitle("ncRNAs library sizes")
 ```
 
+I next want to see where the multi-mapping reads are aligning to. To do this, I repeated the featurecounts summary, but this time I included the -M and --primary options. This tells featurecounts to look for the "NH" tag in the bam file to find the multi-mapping reads. Then, each alignment reported for a multi-mapping read will be counted individually. Each alignment will carry 1 count. 
 
-I next want to see where the multi-mapping reads are aligning to. To do this, I repeated the featurecounts summary, but this time I included the -M option. This tells featurecounts to look for the "NH" tag in the bam file to find the multi-mapping reads. Then, each alignment reported for a multi-mapping read will be counted individually. Each alignment will carry 1 count. 
-
-Including the -M flag meant that there was no more multi-mapping reads. However, now the # reads which were unassigned due to mapping quality was reduced. I then removed the -Q flag to see, and then they were simply unassigned due to no features. 
+Including the -M flag meant that there was no more multi-mapping reads. However, now the # reads which were unassigned due to no features was increased. 
 
 ```{r}
 FC_summary_mm <- read.delim("data/04_featureCounts/featureCounts.all.multimapping.mappingqual10.txt.summary")
@@ -452,7 +476,27 @@ fc <- read_delim("data/04_featureCounts/featureCounts.all.mappingqual10.txt", de
   spread(key = "geo_accession", value = "counts") %>% 
   column_to_rownames("Geneid")
 
-fcmm <- read.delim("data/04_featureCounts/featureCounts.all.multimapping.mappingqual10.txt.summary")
+fcmm <- 
+  read.delim("data/04_featureCounts/featureCounts.all.multimapping.mappingqual10.txt", skip = 1) %>% 
+  set_names(basename(names(.))) %>% 
+  as.data.frame() %>%
+  dplyr::select(-c(Chr, Start, End, Length, Strand)) %>% 
+  gather(key = "geo_accession", value = "counts", starts_with("GSM")) %>% 
+  left_join(meta) %>% 
+  dplyr::select(Geneid, counts, geo_accession) %>% 
+  spread(key = "geo_accession", value = "counts") %>% 
+  column_to_rownames("Geneid")
+
+mmgenes <- subtract(fcmm,fc ) %>% 
+  rownames_to_column("gene_id") %>% 
+  gather(key = "geo_accession", value = "counts", starts_with("GSM")) %>% 
+  dplyr::filter(counts > 0) %>% 
+  arrange(desc(counts)) %>% 
+  left_join(grGenes %>% as_tibble) %>% 
+  as_tibble
+
+mmgenes %>% 
+  dplyr::filter(counts > 1000)
 ```
 
 
